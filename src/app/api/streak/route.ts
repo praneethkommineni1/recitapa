@@ -1,0 +1,10 @@
+import { handler, HttpError, json, requireUser } from "@/lib/http";
+import { streakFor } from "@/lib/queries";
+import { isIsoDate } from "@/lib/streak";
+
+export const GET = handler(async (req: Request) => {
+  const user = await requireUser();
+  const today = new URL(req.url).searchParams.get("today");
+  if (!isIsoDate(today)) throw new HttpError(400, "today must be YYYY-MM-DD.");
+  return json({ streak: streakFor(user.id, today) });
+});
