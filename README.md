@@ -47,17 +47,47 @@ Deploy the web app over HTTPS and open it in Safari on the iPhone. Tap **Share �
 
 The `ios/` folder is a Capacitor project. The app is a native shell that loads your deployed Recitapa server, because accounts, the feed and the AI need the backend. It uses native plugins for speech recognition and text-to-speech. Mic, speech, camera and photo-library permission strings are already in `Info.plist`.
 
-Requirements: a Mac with Xcode, CocoaPods (`brew install cocoapods`) and an Apple Developer account.
+Requirements: a Mac with Xcode (from the App Store; open it once to install the iOS components), Node 22+, and CocoaPods (`brew install cocoapods`). A free Apple ID is enough to run on your own iPhone. TestFlight and the App Store need a paid Apple Developer account.
+
+#### Run it on the Simulator or your iPhone (development)
+
+The native app loads the Next.js server running on your Mac.
+
+```bash
+npm install
+cp .env.example .env.local     # optional: add ANTHROPIC_API_KEY
+npm run seed                   # optional demo data
+
+# Terminal 1: start the web server, reachable from your local network
+npm run dev:lan
+
+# Terminal 2: point the iOS shell at it, install pods and open Xcode
+CAP_SERVER_URL=http://localhost:3000 npm run ios:sync           # Simulator
+# or, for a real iPhone on the same Wi-Fi, use your Mac's Bonjour name
+# (System Settings → General → Sharing → Local hostname):
+CAP_SERVER_URL=http://your-mac-name.local:3000 npm run ios:sync # iPhone
+npm run ios:open
+```
+
+In Xcode:
+
+1. Select the **App** target → **Signing & Capabilities**. Choose your **Team** (add your Apple ID under Xcode → Settings → Accounts if it isn't listed). If Xcode reports that `com.recitapa.app` is taken, change the bundle identifier to something unique, e.g. `com.yourname.recitapa`, and set the same value as `appId` in `capacitor.config.ts`.
+2. Pick a Simulator or your plugged-in iPhone from the device menu at the top and press **Run** (⌘R).
+3. On a real iPhone, the first run needs **Developer Mode** turned on (Settings → Privacy & Security). You also need to trust your developer certificate (Settings → General → VPN & Device Management).
+
+If the app shows "Can't reach the kitchen right now", the phone can't reach your server. Check that `npm run dev:lan` is running, that both devices are on the same Wi-Fi, and that you synced with the right `CAP_SERVER_URL`.
+
+#### Ship to TestFlight / the App Store
 
 ```bash
 # 1. Deploy the web app somewhere with HTTPS and a persistent disk (for SQLite + photos)
 # 2. Point the iOS shell at it and sync
 CAP_SERVER_URL=https://your-recitapa-domain.com npm run ios:sync
-# 3. Open in Xcode, set your signing team, then run on a device or Archive for TestFlight
+# 3. Open in Xcode, then Product → Archive → Distribute App → App Store Connect
 npm run ios:open
 ```
 
-Change the bundle id (`com.recitapa.app`) in `capacitor.config.ts` and in Xcode to one you own. Re-run `ios:sync` whenever you change the server URL or add plugins.
+Bump the version and build number on the App target's **General** tab before each upload. Re-run `ios:sync` whenever you change the server URL or add plugins. Plain-HTTP loads are only allowed for local-network hosts (`NSAllowsLocalNetworking`), so a release build must point at an HTTPS server.
 
 ## Project layout
 
