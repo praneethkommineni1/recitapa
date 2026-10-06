@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { PageHeader } from "@/components/AppShell";
 import { Avatar } from "@/components/Avatar";
+import { ReelsIcon } from "@/components/Icons";
 import { RecipeCard } from "@/components/RecipeCard";
 import { api } from "@/lib/client";
 import type { RecipeCard as Recipe, UserSummary } from "@/lib/types";
@@ -35,7 +36,18 @@ function Explore() {
       <div className="px-5">
         <input className="input" type="search" placeholder="Search cooks, recipes, #tags" value={q} onChange={(e) => setQ(e.target.value)} autoCapitalize="none" />
       </div>
-      {!results && <p className="px-5 pt-6 text-sm text-muted">Find friends to follow, or search for something to cook tonight.</p>}
+      {!results && (
+        <>
+          <p className="px-5 pt-6 text-sm text-muted">Find friends to follow, or search for something to cook tonight.</p>
+          <Link href="/reels" className="mx-5 mt-5 flex items-center gap-4 rounded-3xl bg-ink p-5 text-bg">
+            <ReelsIcon width={32} height={32} />
+            <div>
+              <p className="font-serif text-2xl leading-tight">Not sure what to cook?</p>
+              <p className="text-sm opacity-75">Swipe through recipes picked for you</p>
+            </div>
+          </Link>
+        </>
+      )}
       {results && (
         <>
           {results.users.length > 0 && (

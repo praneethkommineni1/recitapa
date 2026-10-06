@@ -7,7 +7,7 @@ import type { Badge } from "@/lib/badges";
 import type { SessionUser } from "@/lib/auth";
 import { api } from "@/lib/client";
 import { BadgeCelebration } from "./Badges";
-import { BookmarkIcon, HomeIcon, PlusIcon, SearchIcon, UserIcon } from "./Icons";
+import { BookmarkIcon, HomeIcon, PlusIcon, ReelsIcon, SearchIcon, UserIcon } from "./Icons";
 
 const UserContext = createContext<{ user: SessionUser | null; refresh: () => void; checkBadges: () => void }>({
   user: null,
@@ -65,21 +65,26 @@ function TabBar({ username, pathname }: { username: string; pathname: string }) 
     { href: "/", label: "Home", Icon: HomeIcon, active: pathname === "/" },
     { href: "/explore", label: "Explore", Icon: SearchIcon, active: pathname.startsWith("/explore") },
     { href: "/new", label: "Create", Icon: PlusIcon, active: pathname === "/new", primary: true },
+    { href: "/reels", label: "Reels", Icon: ReelsIcon, active: pathname.startsWith("/reels") },
     { href: "/saved", label: "Saved", Icon: BookmarkIcon, active: pathname.startsWith("/saved") },
     { href: `/u/${username}`, label: "You", Icon: UserIcon, active: pathname.startsWith("/u/") },
   ];
+  // Reels are full-bleed and dark, so the tab bar goes dark with them.
+  const dark = pathname.startsWith("/reels");
   return (
-    <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/95 backdrop-blur">
-      <ul className="mx-auto flex max-w-xl items-center justify-around px-2 pt-2 pb-2">
+    <nav className={`pb-safe fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur ${dark ? "border-white/10 bg-black/90" : "border-line bg-bg/95"}`}>
+      <ul className="mx-auto flex max-w-xl items-center justify-around px-1 pt-2 pb-2">
         {tabs.map(({ href, label, Icon, active, primary }) => (
           <li key={href}>
             <Link
               href={href}
               aria-label={label}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 text-[11px] font-medium ${active ? "text-ink" : "text-muted"}`}
+              className={`flex flex-col items-center gap-0.5 px-2.5 py-1 text-[11px] font-medium ${
+                dark ? (active ? "text-white" : "text-white/60") : active ? "text-ink" : "text-muted"
+              }`}
             >
               {primary ? (
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-bg">
+                <span className={`flex h-9 w-9 items-center justify-center rounded-full ${dark ? "bg-white text-black" : "bg-ink text-bg"}`}>
                   <Icon width={20} height={20} />
                 </span>
               ) : (

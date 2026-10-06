@@ -113,6 +113,13 @@ CREATE TABLE IF NOT EXISTS user_badges (
   seen INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, badge_id)
 );
+-- Recipes a user has watched in the Reels feed, so unseen ones come first.
+CREATE TABLE IF NOT EXISTS reel_views (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, recipe_id)
+);
 CREATE TABLE IF NOT EXISTS story_views (
   dinner_id INTEGER NOT NULL REFERENCES dinners(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
