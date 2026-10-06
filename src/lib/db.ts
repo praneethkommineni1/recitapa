@@ -73,12 +73,57 @@ CREATE TABLE IF NOT EXISTS dinners (
 );
 CREATE INDEX IF NOT EXISTS dinners_user ON dinners(user_id, local_date);
 CREATE INDEX IF NOT EXISTS dinners_created ON dinners(created_at);
+-- One row per cook-mode session; AI sessions are metered against the free allowance.
+CREATE TABLE IF NOT EXISTS cook_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipe_id INTEGER REFERENCES recipes(id) ON DELETE SET NULL,
+  ai INTEGER NOT NULL,
+  turns INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS cook_sessions_user ON cook_sessions(user_id, created_at);
+-- Every Claude API call, for cost tracking.
+CREATE TABLE IF NOT EXISTS ai_usage (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_id INTEGER REFERENCES cook_sessions(id) ON DELETE SET NULL,
+  model TEXT NOT NULL,
+  input_tokens INTEGER NOT NULL,
+  output_tokens INTEGER NOT NULL,
+  cache_read_tokens INTEGER NOT NULL,
+  cache_write_tokens INTEGER NOT NULL,
+  cost_micro_usd INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS ai_usage_user ON ai_usage(user_id, created_at);
+-- Days a streak freeze covered.
+CREATE TABLE IF NOT EXISTS streak_freezes (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  local_date TEXT NOT NULL,
+  source TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, local_date)
+);
 CREATE TABLE IF NOT EXISTS story_views (
   dinner_id INTEGER NOT NULL REFERENCES dinners(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (dinner_id, user_id)
 );
 `;
+
+// Columns added after the first release; ALTER TABLE keeps existing databases working.
+const USER_COLUMNS: [string, string][] = [
+  ["plus_until", "TEXT"], // Plus is active while this is in the future
+  ["plus_source", "TEXT"], // stripe | apple | dev
+  ["stripe_customer_id", "TEXT"],
+  ["bonus_freezes", "INTEGER NOT NULL DEFAULT 0"], // purchased streak freezes
+];
+
+function migrate(db: Database.Database) {
+  const existing = new Set((db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map((c) => c.name));
+  for (const [name, type] of USER_COLUMNS) if (!existing.has(name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${type}`);
+}
 
 declare global {
   // eslint-disable-next-line no-var
@@ -91,6 +136,7 @@ function open(): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 }
 

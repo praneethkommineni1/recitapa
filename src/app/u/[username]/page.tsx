@@ -18,6 +18,7 @@ interface Profile {
   avatarUrl: string | null;
   bio: string;
   isMe: boolean;
+  plus: boolean;
   following: boolean;
   stats: { recipes: number; dinners: number; followers: number; following: number };
   streak: StreakInfo;
@@ -57,7 +58,14 @@ export default function ProfilePage() {
     <>
       <PageHeader
         title={`@${profile.username}`}
-        right={profile.isMe ? <button onClick={logout} className="text-sm text-muted">Log out</button> : undefined}
+        right={
+          profile.isMe ? (
+            <div className="flex items-center gap-4 text-sm">
+              <Link href="/plus" className="font-semibold text-accent">{profile.plus ? "Plus" : "Get Plus"}</Link>
+              <button onClick={logout} className="text-muted">Log out</button>
+            </div>
+          ) : undefined
+        }
       />
       <section className="px-5">
         <div className="flex items-center gap-5">
@@ -75,7 +83,10 @@ export default function ProfilePage() {
             ))}
           </div>
         </div>
-        <h1 className="mt-4 font-serif text-3xl tracking-tight">{profile.displayName}</h1>
+        <h1 className="mt-4 flex items-center gap-2 font-serif text-3xl tracking-tight">
+          {profile.displayName}
+          {profile.plus && <span className="rounded-full bg-accent px-2 py-0.5 font-sans text-[10px] font-bold tracking-wide text-accent-ink uppercase">Plus</span>}
+        </h1>
         {profile.bio && <p className="mt-1 text-[15px]">{profile.bio}</p>}
 
         <div className="mt-4 flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3">

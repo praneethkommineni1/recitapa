@@ -10,6 +10,7 @@ A social cooking app: share recipes, post tonight's dinner as a 24-hour story, k
 - **Voice sous-chef** (cook mode): it reads each step out loud, runs the timers, checks in if a step runs long, and listens hands-free. Tell it what went wrong ("I burned the garlic", "I'm out of cream", "it's too salty") and it suggests a fix. It logs the mishap and rewrites the remaining steps when the plan needs to change.
 - **Social**: follow cooks, a Following/Discover feed, and profiles.
 - **iOS**: installable as a home-screen web app, plus a native iOS shell (Capacitor) for the App Store.
+- **Recitapa Plus**: a subscription that pays for the AI. See [Recitapa Plus](#recitapa-plus-subscriptions) below.
 
 ## Stack
 
@@ -29,7 +30,7 @@ npm run dev                    # http://localhost:3000
 
 Without `ANTHROPIC_API_KEY`, cook mode uses a built-in rule-based helper. It handles next/back/repeat, timers and common fixes, and the screen shows "basic mode".
 
-Other scripts: `npm test` (unit tests), `npm run lint` (typecheck), `npm run build && npm start` (production).
+Other scripts: `npm test` (unit tests), `npm run lint` (typecheck), `npm run usage` (AI cost report), `npm run build && npm start` (production).
 
 ## How the sous-chef works
 
@@ -59,12 +60,41 @@ npm run ios:open
 
 Change the bundle id (`com.recitapa.app`) in `capacitor.config.ts` and in Xcode to one you own. Re-run `ios:sync` whenever you change the server URL or add plugins.
 
+## Recitapa Plus (subscriptions)
+
+| | Free | Plus ($4.99/mo or $39.99/yr, 7-day web trial) |
+|---|---|---|
+| Recipes, stories, streaks, basic cook mode | ✓ | ✓ |
+| AI sous-chef sessions | 3 per month | Unlimited (capped at 80 turns per session) |
+| Streak freezes | Purchased only | 2 per month, applied automatically |
+
+The limits live in `src/lib/plan.ts`. The prices come from the Stripe and App Store products, apart from the fallback labels on the paywall in `src/app/plus/page.tsx`.
+
+**How it works**
+- Each time cook mode opens it starts a session (`POST /api/cook-sessions`). If the cook is a free user who has used up the monthly AI sessions, the session runs in basic mode and shows an upgrade prompt.
+- Every Claude call is logged to `ai_usage` with its tokens and cost. `npm run usage [days]` prints the total, the cost per session, the cost per user by plan, and the top spenders. Use it to check that Plus earns more than the AI costs.
+- Streak freezes are used when you open your own streak. They fill a gap of one or two missed nights that ends yesterday, and only for streaks of at least two nights.
+- **Web payments go through Stripe.** `/api/billing/checkout` opens Stripe Checkout, `/api/billing/portal` lets users manage or cancel, and `/api/billing/stripe-webhook` keeps Plus in sync. Point a Stripe webhook at that URL for `checkout.session.completed` and the `customer.subscription.*` events.
+- **iOS payments go through Apple's in-app purchase, managed by RevenueCat.** The app uses our user id as RevenueCat's user id. After a purchase it calls `/api/billing/sync`. `/api/billing/revenuecat-webhook` handles renewals and cancellations. The iOS app only offers Apple's in-app purchase, never Stripe.
+- **A user subscribed in both places keeps whichever Plus lasts longer.** One of them ending doesn't cancel the other.
+
+**Setup**
+1. **Stripe:** create a "Plus" product with a monthly and a yearly price. Set `STRIPE_SECRET_KEY`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_YEARLY` and `STRIPE_WEBHOOK_SECRET`.
+2. **App Store Connect:** create an auto-renewing subscription group with monthly and yearly products.
+3. **RevenueCat:**
+   - Add those products, an entitlement called `plus`, and a current offering with monthly and annual packages.
+   - Set `NEXT_PUBLIC_REVENUECAT_IOS_KEY`, `REVENUECAT_SECRET_KEY` and `REVENUECAT_WEBHOOK_SECRET`.
+   - Add a webhook pointing at `/api/billing/revenuecat-webhook` that sends that secret as the Authorization header.
+4. **Legal links:** set `NEXT_PUBLIC_TERMS_URL` and `NEXT_PUBLIC_PRIVACY_URL`. Apple requires both on subscription screens.
+5. **Local testing:** without any payment keys, run `BILLING_DEV_MODE=1 npm run dev`. A "toggle Plus" button then appears at the bottom of `/plus`.
+
 ## Project layout
 
 ```
 src/app/            pages (feed, recipe, cook mode, dinner, profile, explore, saved) and /api routes
 src/components/     app shell + tab bar, recipe card, stories, streak card, photo picker
-src/lib/            db schema, auth (scrypt + session cookie), queries, streak logic, voice, uploads
+src/lib/            db schema, auth (scrypt + session cookie), queries, streak logic, voice, uploads,
+                    plan limits (plan.ts), streak freezes, purchases (iOS), billing/ (Stripe, RevenueCat)
 src/lib/assistant/  sous-chef prompt, tools, Claude loop, offline fallback
 ios/                Capacitor iOS project
 tests/              node:test unit tests (streaks, assistant tools, Claude loop against a mock API)

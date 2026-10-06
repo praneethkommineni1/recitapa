@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { describeEvent, describeState } from "./context.ts";
+import type { CallUsage } from "./pricing.ts";
 import { TOOLS, toAction } from "./tools.ts";
 import type { AssistantAction, AssistantEvent, AssistantReply, AssistantTurn, KitchenState } from "./types.ts";
 
@@ -35,7 +36,7 @@ export async function claudeTurn(input: {
   state: KitchenState;
   history: AssistantTurn[];
   event: AssistantEvent;
-}): Promise<AssistantReply> {
+}): Promise<AssistantReply & { usage: CallUsage[] }> {
   const { recipe, event } = input;
   const state: KitchenState = structuredClone(input.state);
 
@@ -54,6 +55,7 @@ ${recipe.ingredients.map((i) => `- ${i}`).join("\n")}`;
 
   const actions: AssistantAction[] = [];
   const spoken: string[] = [];
+  const usage: CallUsage[] = [];
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const response = await getClient().beta.messages.create({
@@ -72,8 +74,16 @@ ${recipe.ingredients.map((i) => `- ${i}`).join("\n")}`;
       messages,
     });
 
+    usage.push({
+      model: response.model,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
+      cacheWriteTokens: response.usage.cache_creation_input_tokens ?? 0,
+    });
+
     if (response.stop_reason === "refusal") {
-      return { speech: "Sorry, I can't help with that one. Let's get back to the recipe.", actions, mode: "ai" };
+      return { speech: "Sorry, I can't help with that one. Let's get back to the recipe.", actions, mode: "ai", usage };
     }
 
     for (const block of response.content) if (block.type === "text" && block.text.trim()) spoken.push(block.text.trim());
@@ -91,5 +101,5 @@ ${recipe.ingredients.map((i) => `- ${i}`).join("\n")}`;
     messages.push({ role: "user", content: results });
   }
 
-  return { speech: spoken.join(" ") || "Okay.", actions, mode: "ai" };
+  return { speech: spoken.join(" ") || "Okay.", actions, mode: "ai", usage };
 }

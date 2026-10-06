@@ -165,10 +165,14 @@ export function storyGroups(viewer: number): StoryGroup[] {
 }
 
 export function streakFor(userId: number, today: string): StreakInfo {
-  const dates = (
-    getDb().prepare("SELECT DISTINCT local_date FROM dinners WHERE user_id = ?").all(userId) as { local_date: string }[]
-  ).map((r) => r.local_date);
-  return computeStreak(dates, today);
+  const db = getDb();
+  const dates = (db.prepare("SELECT DISTINCT local_date FROM dinners WHERE user_id = ?").all(userId) as { local_date: string }[]).map(
+    (r) => r.local_date,
+  );
+  const frozen = (db.prepare("SELECT local_date FROM streak_freezes WHERE user_id = ?").all(userId) as { local_date: string }[]).map(
+    (r) => r.local_date,
+  );
+  return computeStreak(dates, today, frozen);
 }
 
 export function findUser(username: string) {

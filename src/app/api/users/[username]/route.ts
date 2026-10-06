@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { handler, HttpError, json, requireUser } from "@/lib/http";
+import { isPlus } from "@/lib/plan";
 import { dinnersByUser, findUser, recipesByUser, streakFor } from "@/lib/queries";
 import { isIsoDate } from "@/lib/streak";
 
@@ -22,6 +23,7 @@ export const GET = handler(async (req: Request, { params }: Ctx) => {
       bio: user.bio,
       joinedAt: user.created_at,
       isMe: user.id === viewer.id,
+      plus: isPlus(user.id),
       following: Boolean(
         db.prepare("SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?").get(viewer.id, user.id),
       ),

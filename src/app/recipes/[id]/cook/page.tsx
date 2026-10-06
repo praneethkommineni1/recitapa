@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ClockIcon, CloseIcon, MicIcon, SendIcon, SpeakerIcon } from "@/components/Icons";
 import type { AssistantAction, AssistantEvent, AssistantReply, AssistantTurn, KitchenState } from "@/lib/assistant/types";
 import { api } from "@/lib/client";
+import type { PlanInfo } from "@/lib/plan";
 import type { RecipeDetail, Step } from "@/lib/types";
 import { canListen, chime, listenOnce, speak, stopListening, stopSpeaking, unlockSpeech } from "@/lib/voice";
 
@@ -60,6 +61,12 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState("");
   const [offline, setOffline] = useState(false);
+  const [access, setAccess] = useState<{ ai: boolean; reason: "limit" | "unavailable" | null; plan: PlanInfo } | null>(null);
+  const cookSessionId = useRef<number | null>(null);
+  const [planPreview, setPlanPreview] = useState<PlanInfo | null>(null);
+  useEffect(() => {
+    api<{ plan: PlanInfo }>("/api/plan").then((r) => setPlanPreview(r.plan)).catch(() => {});
+  }, []);
 
   // Mutable session lives in a ref so timers and async replies always see the latest state.
   const session = useRef<Session>({
@@ -170,7 +177,7 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
       rerender();
       try {
         const reply = await api<AssistantReply & { notice?: string }>("/api/assistant", {
-          body: { recipeId: recipe.id, state, event, history: sess.transcript.slice(0, -1).slice(-16) },
+          body: { recipeId: recipe.id, sessionId: cookSessionId.current, state, event, history: sess.transcript.slice(0, -1).slice(-16) },
         });
         reply.actions.forEach(apply);
         sess.transcript.push({ role: "chef", text: reply.speech });
@@ -238,8 +245,19 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
     transcriptEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [s.transcript.length]);
 
-  function begin() {
-    unlockSpeech();
+  async function begin() {
+    unlockSpeech(); // must run inside the tap for iOS
+    try {
+      const r = await api<{ sessionId: number; ai: boolean; reason: "limit" | "unavailable" | null; plan: PlanInfo }>("/api/cook-sessions", {
+        body: { recipeId: recipe.id },
+      });
+      cookSessionId.current = r.sessionId;
+      setAccess(r);
+      setOffline(!r.ai);
+    } catch (err) {
+      setNotice((err as Error).message);
+      return;
+    }
     const now = Date.now();
     Object.assign(session.current, { startedAt: now, stepStartedAt: now, lastActivityAt: now });
     setStarted(true);
@@ -292,6 +310,14 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
           </p>
           <ul className="mt-6 space-y-1 text-sm text-muted">
             <li>· {s.steps.length} steps · {recipe.ingredients.length} ingredients</li>
+            {planPreview && (
+              <li>
+                ·{" "}
+                {planPreview.aiSessionsLimit === null
+                  ? "Plus: unlimited AI chef sessions."
+                  : `${Math.max(0, planPreview.aiSessionsLimit - planPreview.aiSessionsUsed)} of ${planPreview.aiSessionsLimit} free AI chef sessions left this month.`}
+              </li>
+            )}
             <li>· {canListen() ? "Hands-free voice is on: speak after the chef finishes." : "Voice input isn't available here, so you can type to the chef."}</li>
           </ul>
         </div>
@@ -362,6 +388,15 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
         ))}
         {busy && <p className="text-sm text-muted italic">Chef is thinking…</p>}
         {notice && <p className="text-xs text-muted">{notice}</p>}
+        {access?.reason === "limit" && (
+          <div className="rounded-2xl bg-accent-soft p-4 text-sm">
+            <p>
+              You&apos;ve used your {access.plan.aiSessionsLimit} free AI chef sessions this month, so tonight is basic mode: steps,
+              timers and common fixes.
+            </p>
+            <Link href="/plus" className="mt-2 inline-block font-semibold text-accent underline">Get unlimited with Plus</Link>
+          </div>
+        )}
         <div ref={transcriptEnd} />
       </div>
 
@@ -369,6 +404,12 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
         <div className="pb-safe shrink-0 border-t border-line px-5 pt-4 pb-4">
           <p className="font-serif text-2xl">Dinner is served.</p>
           <Link href={`/dinner/new?recipe=${recipe.id}`} className="btn btn-accent mt-3 w-full">Share tonight&apos;s dinner</Link>
+          {access?.plan.plan === "free" && access.ai && (
+            <p className="mt-3 text-center text-xs text-muted">
+              {Math.max(0, (access.plan.aiSessionsLimit ?? 0) - access.plan.aiSessionsUsed)} free AI chef sessions left this month.{" "}
+              <Link href="/plus" className="font-semibold text-ink underline">Go unlimited</Link>
+            </p>
+          )}
         </div>
       ) : (
         <div className="pb-safe shrink-0 border-t border-line bg-bg px-4 pt-3 pb-3">
