@@ -13,7 +13,8 @@
     "seed": "node --experimental-strip-types scripts/seed.ts",
     "ios:sync": "cap sync ios",
     "ios:open": "cap open ios",
-    "usage": "node --experimental-strip-types scripts/usage.ts"
+    "usage": "node --experimental-strip-types scripts/usage.ts",
+    "dev:phone": "next dev -H 0.0.0.0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

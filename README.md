@@ -45,6 +45,29 @@ Other scripts: `npm test` (unit tests), `npm run lint` (typecheck), `npm run usa
 
 Deploy the web app over HTTPS and open it in Safari on the iPhone. Tap **Share → Add to Home Screen**. It runs full-screen with the app icon and respects the notch and home indicator. Voice input uses Safari's speech recognition.
 
+### Try it on your own iPhone (free Apple ID, no paid account)
+
+You need a Mac with Xcode and CocoaPods, with your Mac and iPhone on the same Wi-Fi. Your Mac runs the server and the iPhone app connects to it.
+
+```bash
+npm install
+npm run seed                       # optional demo data
+npm run dev:phone                  # leave this running
+ipconfig getifaddr en0             # your Mac's Wi-Fi IP, e.g. 192.168.1.23
+CAP_SERVER_URL=http://192.168.1.23:3000 npm run ios:sync
+npm run ios:open                   # opens Xcode
+```
+
+Then in Xcode:
+1. Select the **App** project, open the **App** target, then **Signing & Capabilities**.
+2. Under **Team**, add your Apple ID and pick your Personal Team.
+3. Change **Bundle Identifier** to something unique, such as `com.yourname.recitapa`.
+4. Plug in your iPhone and tap **Trust**. On iOS 16 and later, turn on **Settings → Privacy & Security → Developer Mode**.
+5. Pick your iPhone in Xcode's device menu and press **Run** (▶).
+6. On first launch, go to **Settings → General → VPN & Device Management** on the iPhone and trust your developer certificate.
+
+Apps installed with a free Apple ID stop opening after 7 days. Press Run again to reinstall. Subscriptions can't be tested this way because they need a paid developer account and RevenueCat.
+
 ### Option 2: Native iOS app (App Store / TestFlight)
 
 The `ios/` folder is a Capacitor project. The app is a native shell that loads your deployed Recitapa server, because accounts, the feed and the AI need the backend. It uses native plugins for speech recognition and text-to-speech. Mic, speech, camera and photo-library permission strings are already in `Info.plist`.
