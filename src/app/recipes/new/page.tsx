@@ -41,7 +41,7 @@ export default function NewRecipe() {
           steps: steps.filter((s) => s.text.trim()).map((s) => ({ text: s.text, minutes: s.minutes || null })),
         },
       });
-      router.replace(`/recipes/${id}`);
+      router.replace(`/recipes/${id}`); // the app shell checks for new badges on navigation
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);

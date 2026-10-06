@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import type { Badge } from "@/lib/badges";
 import type { SessionUser } from "@/lib/auth";
 import { api } from "@/lib/client";
+import { BadgeCelebration } from "./Badges";
 import { BookmarkIcon, HomeIcon, PlusIcon, SearchIcon, UserIcon } from "./Icons";
 
-const UserContext = createContext<{ user: SessionUser | null; refresh: () => void }>({ user: null, refresh: () => {} });
+const UserContext = createContext<{ user: SessionUser | null; refresh: () => void; checkBadges: () => void }>({
+  user: null,
+  refresh: () => {},
+  checkBadges: () => {},
+});
 export const useUser = () => useContext(UserContext);
 
 const PUBLIC = ["/login", "/signup"];
@@ -17,6 +23,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
   const [version, setVersion] = useState(0);
+  const [newBadges, setNewBadges] = useState<Badge[]>([]);
   const isPublic = PUBLIC.some((p) => pathname.startsWith(p));
   const immersive = /^\/recipes\/\d+\/cook/.test(pathname);
 
@@ -30,13 +37,25 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (user === null && !isPublic) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
   }, [user, isPublic, pathname, router]);
 
+  // Celebrate newly earned badges after actions and on navigation (some, like followers or likes,
+  // are earned through other people's actions).
+  const checkBadges = useCallback(() => {
+    api<{ badges: Badge[] }>("/api/badges/new", { body: {} })
+      .then((r) => r.badges.length && setNewBadges((q) => [...q, ...r.badges]))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (user && !immersive) checkBadges();
+  }, [user, pathname, immersive, checkBadges]);
+
   if (isPublic) return <>{children}</>;
   if (!user) return <div className="min-h-dvh" />;
 
   return (
-    <UserContext.Provider value={{ user, refresh: () => setVersion((v) => v + 1) }}>
+    <UserContext.Provider value={{ user, refresh: () => setVersion((v) => v + 1), checkBadges }}>
       <div className={`mx-auto min-h-dvh max-w-xl ${immersive ? "" : "pb-24"}`}>{children}</div>
       {!immersive && <TabBar username={user.username} pathname={pathname} />}
+      <BadgeCelebration badges={newBadges} onDone={() => setNewBadges((q) => q.slice(1))} />
     </UserContext.Provider>
   );
 }

@@ -75,7 +75,16 @@ export const POST = handler(async (req: Request) => {
   if (!session) throw new HttpError(404, "Cook session not found.");
   db.prepare("UPDATE cook_sessions SET turns = turns + 1 WHERE id = ?").run(session.id);
 
-  if (!session.ai || !aiConfigured()) return json(offlineTurn(state, event));
+  const countMishaps = (actions: { type: string }[]) => {
+    const mishaps = actions.filter((a) => a.type === "log_mishap").length;
+    if (mishaps) db.prepare("UPDATE cook_sessions SET mishaps = mishaps + ? WHERE id = ?").run(mishaps, session.id);
+  };
+
+  if (!session.ai || !aiConfigured()) {
+    const reply = offlineTurn(state, event);
+    countMishaps(reply.actions);
+    return json(reply);
+  }
   if (session.turns >= MAX_TURNS_PER_SESSION)
     return json({ ...offlineTurn(state, event), notice: "This session hit its AI limit, so I've switched to basic mode." });
   try {
@@ -86,6 +95,7 @@ export const POST = handler(async (req: Request) => {
     );
     for (const u of usage)
       record.run(user.id, session.id, u.model, u.inputTokens, u.outputTokens, u.cacheReadTokens, u.cacheWriteTokens, costMicroUsd(u));
+    countMishaps(reply.actions);
     return json(reply);
   } catch (err) {
     // Keep the cook moving even if the API is unreachable or misconfigured.

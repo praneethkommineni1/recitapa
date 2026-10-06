@@ -5,10 +5,12 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader, useUser } from "@/components/AppShell";
 import { Avatar } from "@/components/Avatar";
+import { BadgeGrid, BadgeMedal } from "@/components/Badges";
 import { FlameIcon } from "@/components/Icons";
 import { PhotoPicker } from "@/components/PhotoPicker";
 import { RecipeCard } from "@/components/RecipeCard";
 import { api, localToday } from "@/lib/client";
+import type { UserBadge } from "@/lib/badgeAwards";
 import type { Dinner, RecipeCard as Recipe, StreakInfo } from "@/lib/types";
 
 interface Profile {
@@ -29,7 +31,8 @@ export default function ProfilePage() {
   const { refresh } = useUser();
   const [data, setData] = useState<{ profile: Profile; recipes: Recipe[]; dinners: Dinner[] } | null>(null);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"recipes" | "diary">("recipes");
+  const [tab, setTab] = useState<"recipes" | "diary" | "badges">("recipes");
+  const [badges, setBadges] = useState<UserBadge[] | null>(null);
   const [editing, setEditing] = useState(false);
 
   const load = useCallback(
@@ -38,7 +41,8 @@ export default function ProfilePage() {
   );
   useEffect(() => {
     load();
-  }, [load]);
+    api<{ badges: UserBadge[] }>(`/api/users/${username}/badges`).then((r) => setBadges(r.badges)).catch(() => {});
+  }, [load, username]);
 
   if (error) return <><PageHeader title="Profile" back /><p className="px-5 text-muted">{error}</p></>;
   if (!data) return <PageHeader title="" />;
@@ -97,6 +101,19 @@ export default function ProfilePage() {
           </p>
         </div>
 
+        {badges && badges.some((b) => b.earned) && (
+          <button onClick={() => setTab("badges")} className="mt-3 flex w-full items-center gap-2 overflow-hidden" aria-label="See badges">
+            {badges
+              .filter((b) => b.earned)
+              .sort((a, b) => (b.earnedAt ?? "").localeCompare(a.earnedAt ?? ""))
+              .slice(0, 6)
+              .map((b) => <BadgeMedal key={b.id} badge={b} size={36} />)}
+            <span className="ml-1 shrink-0 text-xs font-semibold text-muted">
+              {badges.filter((b) => b.earned).length} badges
+            </span>
+          </button>
+        )}
+
         <div className="mt-4">
           {profile.isMe ? (
             <button onClick={() => setEditing(true)} className="btn btn-ghost w-full">Edit profile</button>
@@ -109,14 +126,16 @@ export default function ProfilePage() {
       </section>
 
       <div className="mt-6 flex gap-6 border-b border-line px-5">
-        {(["recipes", "diary"] as const).map((t) => (
+        {(["recipes", "diary", "badges"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`-mb-px border-b-2 pb-2.5 text-sm font-semibold ${tab === t ? "border-ink" : "border-transparent text-muted"}`}>
-            {t === "recipes" ? "Recipes" : "Dinner diary"}
+            {t === "recipes" ? "Recipes" : t === "diary" ? "Dinner diary" : "Badges"}
           </button>
         ))}
       </div>
 
-      {tab === "recipes" ? (
+      {tab === "badges" ? (
+        badges ? <BadgeGrid badges={badges} /> : <p className="px-5 pt-5 text-sm text-muted">Loading…</p>
+      ) : tab === "recipes" ? (
         <div className="space-y-5 px-4 pt-5">
           {recipes.map((r) => <RecipeCard key={r.id} recipe={r} />)}
           {!recipes.length && <p className="px-1 text-sm text-muted">No recipes yet.</p>}

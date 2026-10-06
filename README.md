@@ -10,6 +10,7 @@ A social cooking app: share recipes, post tonight's dinner as a 24-hour story, k
 - **Voice sous-chef** (cook mode): it reads each step out loud, runs the timers, checks in if a step runs long, and listens hands-free. Tell it what went wrong ("I burned the garlic", "I'm out of cream", "it's too salty") and it suggests a fix. It logs the mishap and rewrites the remaining steps when the plan needs to change.
 - **Social**: follow cooks, a Following/Discover feed, and profiles.
 - **iOS**: installable as a home-screen web app, plus a native iOS shell (Capacitor) for the App Store.
+- **Badges**: 30 pun-named badges, such as Loaf Actually (homemade sourdough connoisseur), Pasta La Vista, Hot Streak and Saved by the Bell Pepper. They're earned automatically from streaks, dinners, recipes, community activity, sous-chef use and specialty dishes. Profiles have a Badges tab that shows progress on locked badges, and a "New badge" card pops up when you earn one. The catalog lives in `src/lib/badges.ts`; edit names, targets or dish keywords there.
 - **Recitapa Plus**: a subscription that pays for the AI. See [Recitapa Plus](#recitapa-plus-subscriptions) below.
 
 ## Stack

@@ -13,12 +13,11 @@ export type Metric =
   | "followers"
   | "othersRecipesCooked"
   | "yourRecipesCookedByOthers"
-  | "distinctRecipesCooked"
   | "aiSessions"
   | "mishapsRescued"
   | `dish:${DishKind}`;
 
-export type DishKind = "bread" | "pasta" | "noodles" | "pizza" | "tacos" | "soup" | "curry" | "dessert" | "eggs" | "rice" | "greens" | "spicy";
+export type DishKind = "bread" | "pasta" | "noodles" | "pizza" | "tacos" | "soup" | "curry" | "dessert" | "rice" | "greens" | "spicy";
 
 export type BadgeCategory = "Streaks" | "Dinners" | "Recipes" | "Community" | "Sous-chef" | "Specialties";
 
@@ -45,12 +44,10 @@ export const BADGES: Badge[] = [
   { id: "plate-expectations", name: "Plate Expectations", description: "Log 25 dinners.", emoji: "📖", category: "Dinners", metric: "dinners", target: 25 },
   { id: "fork-lift", name: "Fork Lift", description: "Log 100 dinners.", emoji: "🍴", category: "Dinners", metric: "dinners", target: 100 },
   { id: "say-cheese", name: "Say Cheese", description: "Share 10 dinners with a photo.", emoji: "📸", category: "Dinners", metric: "photoDinners", target: 10 },
-  { id: "spice-of-life", name: "Spice of Life", description: "Cook 10 different recipes.", emoji: "🌶️", category: "Dinners", metric: "distinctRecipesCooked", target: 10 },
 
   // Recipes
   { id: "recipe-for-success", name: "Recipe for Success", description: "Publish your first recipe.", emoji: "📝", category: "Recipes", metric: "recipesPosted", target: 1 },
   { id: "chefs-kiss", name: "Chef's Kiss", description: "Publish 10 recipes.", emoji: "💋", category: "Recipes", metric: "recipesPosted", target: 10 },
-  { id: "whole-enchilada", name: "The Whole Enchilada", description: "Publish 25 recipes.", emoji: "🌯", category: "Recipes", metric: "recipesPosted", target: 25 },
   { id: "hall-of-flame", name: "Hall of Flame", description: "Get 50 likes on your recipes.", emoji: "❤️‍🔥", category: "Recipes", metric: "likesReceived", target: 50 },
   { id: "spice-influencer", name: "Spice Influencer", description: "Have others cook your recipes 5 times.", emoji: "✨", category: "Recipes", metric: "yourRecipesCookedByOthers", target: 5 },
 
@@ -63,7 +60,6 @@ export const BADGES: Badge[] = [
   // Sous-chef
   { id: "hey-sous", name: "Hey Sous", description: "Cook with the AI sous-chef for the first time.", emoji: "🎙️", category: "Sous-chef", metric: "aiSessions", target: 1 },
   { id: "saved-by-the-bell-pepper", name: "Saved by the Bell Pepper", description: "Let the sous-chef rescue a kitchen mishap.", emoji: "🫑", category: "Sous-chef", metric: "mishapsRescued", target: 1 },
-  { id: "whisk-taker", name: "Whisk Taker", description: "Survive 5 kitchen mishaps.", emoji: "🥄", category: "Sous-chef", metric: "mishapsRescued", target: 5 },
 
   // Specialties (dinners whose recipe or caption match the dish)
   { id: "loaf-actually", name: "Loaf Actually", description: "Homemade sourdough connoisseur: bake bread 3 times.", emoji: "🍞", category: "Specialties", metric: "dish:bread", target: 3 },
@@ -74,7 +70,6 @@ export const BADGES: Badge[] = [
   { id: "souper-star", name: "Souper Star", description: "Make 5 soups or stews.", emoji: "🥣", category: "Specialties", metric: "dish:soup", target: 5 },
   { id: "curry-favor", name: "Curry Favor", description: "Cook 5 curries.", emoji: "🍛", category: "Specialties", metric: "dish:curry", target: 5 },
   { id: "batter-up", name: "Batter Up", description: "Bake 5 desserts.", emoji: "🧁", category: "Specialties", metric: "dish:dessert", target: 5 },
-  { id: "eggcellent", name: "Eggcellent", description: "Cook 5 egg dishes.", emoji: "🍳", category: "Specialties", metric: "dish:eggs", target: 5 },
   { id: "rice-rice-baby", name: "Rice Rice Baby", description: "Cook 5 rice dishes.", emoji: "🍚", category: "Specialties", metric: "dish:rice", target: 5 },
   { id: "romaine-calm", name: "Romaine Calm", description: "Cook 5 salads or veggie-forward dinners.", emoji: "🥗", category: "Specialties", metric: "dish:greens", target: 5 },
   { id: "heat-seeker", name: "Heat Seeker", description: "Cook 5 spicy dinners.", emoji: "🌋", category: "Specialties", metric: "dish:spicy", target: 5 },
@@ -90,7 +85,6 @@ const DISH_PATTERNS: Record<DishKind, string[]> = {
   soup: ["soup", "stew", "chowder", "bisque", "gumbo", "broth", "minestrone", "goulash"],
   curry: ["curry", "masala", "dal\\b", "dahl", "korma", "vindaloo", "tikka", "rendang"],
   dessert: ["cake", "cookie", "brownie", "pie\\b", "tart\\b", "dessert", "cupcake", "muffin", "pudding", "ice cream", "cheesecake", "crumble", "tiramisu"],
-  eggs: ["egg", "omelet", "frittata", "shakshuka", "quiche"],
   rice: ["rice\\b", "risotto", "paella", "biryani", "jollof", "pilaf", "congee"],
   greens: ["salad", "vegan", "vegetarian", "veggie", "tofu", "greens", "plant-based", "kale"],
   spicy: ["spicy", "chili", "chilli", "jalape", "sriracha", "gochujang", "hot sauce", "harissa", "scotch bonnet", "habanero", "vindaloo"],

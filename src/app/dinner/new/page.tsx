@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { PageHeader } from "@/components/AppShell";
+import { PageHeader, useUser } from "@/components/AppShell";
 import { FlameIcon } from "@/components/Icons";
 import { PhotoPicker } from "@/components/PhotoPicker";
 import { api, localToday } from "@/lib/client";
@@ -19,6 +19,7 @@ export default function Page() {
 function NewDinner() {
   const router = useRouter();
   const params = useSearchParams();
+  const { checkBadges } = useUser();
   const recipeId = params.get("recipe");
   const [recipe, setRecipe] = useState<RecipeDetail | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -40,6 +41,7 @@ function NewDinner() {
         body: { photo, caption, recipeId: recipe?.id ?? null, localDate: localToday() },
       });
       setDone(r.streak);
+      checkBadges();
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useUser } from "@/components/AppShell";
 import { ChevronLeft, ChevronRight, ClockIcon, CloseIcon, MicIcon, SendIcon, SpeakerIcon } from "@/components/Icons";
 import type { AssistantAction, AssistantEvent, AssistantReply, AssistantTurn, KitchenState } from "@/lib/assistant/types";
 import { api } from "@/lib/client";
@@ -51,6 +52,7 @@ export default function CookPage() {
 
 function CookMode({ recipe }: { recipe: RecipeDetail }) {
   const router = useRouter();
+  const { checkBadges } = useUser();
   const [started, setStarted] = useState(false);
   const [finished, setFinished] = useState(false);
   const [, setTick] = useState(0);
@@ -280,6 +282,7 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
 
   function finish() {
     setFinished(true);
+    checkBadges();
     stopListening();
     say("Nice work, chef. Snap a photo and share tonight's dinner to keep your streak going.");
   }

@@ -105,6 +105,14 @@ CREATE TABLE IF NOT EXISTS streak_freezes (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (user_id, local_date)
 );
+-- Badges a user has earned (catalog in lib/badges.ts). seen = 0 until the "new badge" card is shown.
+CREATE TABLE IF NOT EXISTS user_badges (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  badge_id TEXT NOT NULL,
+  earned_at TEXT NOT NULL DEFAULT (datetime('now')),
+  seen INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, badge_id)
+);
 CREATE TABLE IF NOT EXISTS story_views (
   dinner_id INTEGER NOT NULL REFERENCES dinners(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -113,16 +121,21 @@ CREATE TABLE IF NOT EXISTS story_views (
 `;
 
 // Columns added after the first release; ALTER TABLE keeps existing databases working.
-const USER_COLUMNS: [string, string][] = [
-  ["plus_until", "TEXT"], // Plus is active while this is in the future
-  ["plus_source", "TEXT"], // stripe | apple | dev
-  ["stripe_customer_id", "TEXT"],
-  ["bonus_freezes", "INTEGER NOT NULL DEFAULT 0"], // purchased streak freezes
-];
+const ADDED_COLUMNS: Record<string, [string, string][]> = {
+  users: [
+    ["plus_until", "TEXT"], // Plus is active while this is in the future
+    ["plus_source", "TEXT"], // stripe | apple | dev
+    ["stripe_customer_id", "TEXT"],
+    ["bonus_freezes", "INTEGER NOT NULL DEFAULT 0"], // purchased streak freezes
+  ],
+  cook_sessions: [["mishaps", "INTEGER NOT NULL DEFAULT 0"]], // mishaps the sous-chef logged
+};
 
 function migrate(db: Database.Database) {
-  const existing = new Set((db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map((c) => c.name));
-  for (const [name, type] of USER_COLUMNS) if (!existing.has(name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${type}`);
+  for (const [table, columns] of Object.entries(ADDED_COLUMNS)) {
+    const existing = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name));
+    for (const [name, type] of columns) if (!existing.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
+  }
 }
 
 declare global {
