@@ -1,11 +1,22 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { describeEvent, describeState } from "./context.ts";
-import type { CallUsage } from "./pricing.ts";
 import { TOOLS, toAction } from "./tools.ts";
-import type { AssistantAction, AssistantEvent, AssistantReply, AssistantTurn, KitchenState } from "./types.ts";
+import { ChefUnavailableError, type AssistantAction, type CallUsage, type ChefInput, type ChefProvider, type ChefReply } from "./types.ts";
 
-const MODEL = "claude-opus-5-5";
+export const DEFAULT_MODEL = "claude-opus-5-5";
 const MAX_TOOL_ROUNDS = 4;
+
+// Models that take server-side refusal fallbacks ("default" form). Others get neither the beta nor the parameter.
+const FALLBACK_MODELS = new Set(["claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"]);
+
+/** Per-model request options: Haiku 4.5 rejects `effort`, and only some models take refusal fallbacks. */
+function modelOptions(model: string) {
+  const options: { output_config?: { effort: "low" }; betas?: string[]; fallbacks?: "default" } = {};
+  // Voice turns need to feel immediate; low effort keeps latency down.
+  if (!model.startsWith("claude-haiku")) options.output_config = { effort: "low" };
+  if (FALLBACK_MODELS.has(model)) Object.assign(options, { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" });
+  return options;
+}
 
 const SYSTEM = `You are the voice sous-chef inside Recitapa, a recipe app. The cook has their hands busy and hears everything you say through text-to-speech, so:
 - Speak in short, natural sentences. Usually one to three. No markdown, lists, emoji or headings.
@@ -31,18 +42,13 @@ export function aiConfigured(): boolean {
 let client: Anthropic | null = null;
 const getClient = () => (client ??= new Anthropic());
 
-export async function claudeTurn(input: {
-  recipe: { title: string; servings: number | null; ingredients: string[] };
-  state: KitchenState;
-  history: AssistantTurn[];
-  event: AssistantEvent;
-}): Promise<AssistantReply & { usage: CallUsage[] }> {
+export async function claudeTurn(input: ChefInput, model: string = DEFAULT_MODEL): Promise<ChefReply> {
   const { recipe, event } = input;
-  const state: KitchenState = structuredClone(input.state);
+  const state = structuredClone(input.state);
 
   const recipeContext = `Recipe: ${recipe.title}${recipe.servings ? ` (serves ${recipe.servings})` : ""}
 Ingredients:
-${recipe.ingredients.map((i) => `- ${i}`).join("\n")}`;
+${recipe.ingredients.map((i) => `- ${i}`).join("\n")}${recipe.note ? `\n\n${recipe.note}` : ""}`;
 
   // Earlier exchanges are replayed as plain text; this request's tool loop below is append-only.
   const messages: Anthropic.Beta.BetaMessageParam[] = [];
@@ -59,12 +65,9 @@ ${recipe.ingredients.map((i) => `- ${i}`).join("\n")}`;
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const response = await getClient().beta.messages.create({
-      model: MODEL,
+      model,
       max_tokens: 4000,
-      // Voice turns need to feel immediate; low effort keeps latency down.
-      output_config: { effort: "low" },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
+      ...modelOptions(model),
       cache_control: { type: "ephemeral" },
       system: [
         { type: "text", text: SYSTEM },
@@ -102,4 +105,21 @@ ${recipe.ingredients.map((i) => `- ${i}`).join("\n")}`;
   }
 
   return { speech: spoken.join(" ") || "Okay.", actions, mode: "ai", usage };
+}
+
+/** The sous-chef on a Claude model. API errors become ChefUnavailableError so cook mode keeps going. */
+export function claudeChef(model: string = DEFAULT_MODEL): ChefProvider {
+  return {
+    name: "claude",
+    model,
+    configured: aiConfigured,
+    async turn(input) {
+      try {
+        return await claudeTurn(input, model);
+      } catch (err) {
+        if (err instanceof Anthropic.APIError) throw new ChefUnavailableError(`Claude API error ${err.status ?? "(no connection)"}: ${err.message}`);
+        throw err;
+      }
+    },
+  };
 }

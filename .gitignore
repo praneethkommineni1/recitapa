@@ -5,3 +5,5 @@ next-env.d.ts
 /data/
 .env*.local
 .env
+# Kitchen eval runs (npm run eval:chef)
+/evals/results/

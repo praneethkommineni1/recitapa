@@ -1,5 +1,6 @@
 // AI cost report: what the sous-chef costs per session, per user and per plan.
 // Usage: npm run usage [days]   (default: last 30 days)
+import { budgetStatus } from "../src/lib/budget.ts";
 import { getDb } from "../src/lib/db.ts";
 
 const days = Number(process.argv[2] ?? 30);
@@ -16,10 +17,22 @@ const totals = db
   )
   .get(since) as { sessions: number; calls: number; cost: number; input: number; output: number; cache_read: number };
 
+const budget = budgetStatus();
+console.log(
+  `AI budget this month: ${usd(budget.spentMicroUsd)} of ${usd(budget.capMicroUsd)} (${budget.capMicroUsd ? Math.round((budget.spentMicroUsd / budget.capMicroUsd) * 100) : 100}%)${budget.exhausted ? " · USED UP, cook mode is in basic mode" : ""}\n`,
+);
 console.log(`AI chef usage, last ${days} days`);
 console.log(`  sessions: ${totals.sessions}   API calls: ${totals.calls}   total cost: ${usd(totals.cost)}`);
 if (totals.sessions) console.log(`  average cost per session: ${usd(totals.cost / totals.sessions)}`);
 console.log(`  tokens: ${totals.input} input, ${totals.output} output, ${totals.cache_read} cache reads`);
+
+const byModel = db
+  .prepare(
+    `SELECT model, COUNT(DISTINCT session_id) AS sessions, SUM(cost_micro_usd) AS cost FROM ai_usage
+     WHERE created_at >= datetime('now', ?) GROUP BY model ORDER BY cost DESC`,
+  )
+  .all(since) as { model: string; sessions: number; cost: number }[];
+for (const m of byModel) console.log(`  ${m.model}: ${m.sessions} sessions, ${usd(m.cost)} (${usd(m.cost / Math.max(1, m.sessions))} per session)`);
 
 const byPlan = db
   .prepare(

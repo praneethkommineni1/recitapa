@@ -1,7 +1,16 @@
+import { monthStart } from "./budget";
 import { getDb } from "./db";
 
-// Free vs Plus. Recipes, stories and streaks are free; the AI sous-chef is metered.
-export const FREE_AI_SESSIONS_PER_MONTH = 3;
+// Free vs Plus. While we learn (roadmap Phase 0) the AI sous-chef is free for everyone: set this to a
+// number to meter free users again. The shared monthly budget cap (budget.ts) still applies to everyone.
+export const FREE_AI_SESSIONS_PER_MONTH: number | null = null;
+/** AI sessions one person can start per rolling 24 hours, so no single user can drain the shared budget. */
+export const AI_SESSIONS_PER_USER_PER_DAY = Number(process.env.AI_SESSIONS_PER_USER_PER_DAY) || 10;
+/** A cook session's AI stops working this long after it starts; the cook starts cook mode again. */
+export const SESSION_MAX_HOURS = 4;
+
+/** Why a cook session runs in basic mode instead of with the AI chef. */
+export type AiOffReason = "unavailable" | "budget" | "daily" | "limit";
 export const PLUS_FREEZES_PER_MONTH = 2;
 /** Hard cap on assistant turns per session, for both plans, so one session can't run up the bill. */
 export const MAX_TURNS_PER_SESSION = 80;
@@ -17,12 +26,6 @@ export interface PlanInfo {
   freezesLeft: number;
 }
 
-/** Start of the current calendar month (UTC) in SQLite datetime format. */
-const monthStart = () => {
-  const d = new Date();
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01 00:00:00`;
-};
-
 export function isPlus(userId: number): boolean {
   const row = getDb().prepare("SELECT plus_until FROM users WHERE id = ?").get(userId) as { plus_until: string | null } | undefined;
   return !!row?.plus_until && new Date(row.plus_until) > new Date();
@@ -33,6 +36,14 @@ export function aiSessionsThisMonth(userId: number): number {
     getDb()
       .prepare("SELECT COUNT(*) AS n FROM cook_sessions WHERE user_id = ? AND ai = 1 AND created_at >= ?")
       .get(userId, monthStart()) as { n: number }
+  ).n;
+}
+
+export function aiSessionsToday(userId: number): number {
+  return (
+    getDb()
+      .prepare("SELECT COUNT(*) AS n FROM cook_sessions WHERE user_id = ? AND ai = 1 AND created_at >= datetime('now', '-1 day')")
+      .get(userId) as { n: number }
   ).n;
 }
 

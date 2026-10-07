@@ -7,7 +7,8 @@ import { useUser } from "@/components/AppShell";
 import { ChevronLeft, ChevronRight, ClockIcon, CloseIcon, MicIcon, SendIcon, SpeakerIcon } from "@/components/Icons";
 import type { AssistantAction, AssistantEvent, AssistantReply, AssistantTurn, KitchenState } from "@/lib/assistant/types";
 import { api } from "@/lib/client";
-import type { PlanInfo } from "@/lib/plan";
+import { keepAwake } from "@/lib/keepAwake";
+import type { AiOffReason, PlanInfo } from "@/lib/plan";
 import type { RecipeDetail, Step } from "@/lib/types";
 import { canListen, chime, listenOnce, speak, stopListening, stopSpeaking, unlockSpeech } from "@/lib/voice";
 
@@ -63,7 +64,9 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState("");
   const [offline, setOffline] = useState(false);
-  const [access, setAccess] = useState<{ ai: boolean; reason: "limit" | "unavailable" | null; plan: PlanInfo } | null>(null);
+  const [access, setAccess] = useState<{ ai: boolean; reason: AiOffReason | null; plan: PlanInfo } | null>(null);
+  // Servings chosen on the recipe page (?servings=N), so the chef scales amounts it mentions.
+  const [servings] = useState(() => (typeof window === "undefined" ? null : Number(new URLSearchParams(window.location.search).get("servings")) || null));
   const cookSessionId = useRef<number | null>(null);
   const [planPreview, setPlanPreview] = useState<PlanInfo | null>(null);
   useEffect(() => {
@@ -179,7 +182,7 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
       rerender();
       try {
         const reply = await api<AssistantReply & { notice?: string }>("/api/assistant", {
-          body: { recipeId: recipe.id, sessionId: cookSessionId.current, state, event, history: sess.transcript.slice(0, -1).slice(-16) },
+          body: { recipeId: recipe.id, sessionId: cookSessionId.current, servings, state, event, history: sess.transcript.slice(0, -1).slice(-16) },
         });
         reply.actions.forEach(apply);
         sess.transcript.push({ role: "chef", text: reply.speech });
@@ -195,7 +198,7 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
     processing.current = false;
     setBusy(false);
     if (lastSpeech) say(lastSpeech);
-  }, [apply, recipe.id, say]);
+  }, [apply, recipe.id, servings, say]);
 
   const enqueue = useCallback(
     (event: AssistantEvent) => {
@@ -230,14 +233,12 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
     return () => clearInterval(interval);
   }, [started, enqueue]);
 
-  // Keep the screen awake while cooking where supported.
+  // Keep the screen awake while cooking.
   useEffect(() => {
     if (!started) return;
-    let lock: { release(): Promise<void> } | null = null;
-    const nav = navigator as Navigator & { wakeLock?: { request(type: "screen"): Promise<{ release(): Promise<void> }> } };
-    nav.wakeLock?.request("screen").then((l) => (lock = l)).catch(() => {});
+    const release = keepAwake();
     return () => {
-      lock?.release().catch(() => {});
+      release();
       stopSpeaking();
       stopListening();
     };
@@ -250,7 +251,7 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
   async function begin() {
     unlockSpeech(); // must run inside the tap for iOS
     try {
-      const r = await api<{ sessionId: number; ai: boolean; reason: "limit" | "unavailable" | null; plan: PlanInfo }>("/api/cook-sessions", {
+      const r = await api<{ sessionId: number; ai: boolean; reason: AiOffReason | null; plan: PlanInfo }>("/api/cook-sessions", {
         body: { recipeId: recipe.id },
       });
       cookSessionId.current = r.sessionId;
@@ -282,6 +283,7 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
 
   function finish() {
     setFinished(true);
+    if (cookSessionId.current) api(`/api/cook-sessions/${cookSessionId.current}/finish`, { method: "POST" }).catch(() => {});
     checkBadges();
     stopListening();
     say("Nice work, chef. Snap a photo and share tonight's dinner to keep your streak going.");
@@ -317,7 +319,7 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
               <li>
                 ·{" "}
                 {planPreview.aiSessionsLimit === null
-                  ? "Plus: unlimited AI chef sessions."
+                  ? "The AI sous-chef is included."
                   : `${Math.max(0, planPreview.aiSessionsLimit - planPreview.aiSessionsUsed)} of ${planPreview.aiSessionsLimit} free AI chef sessions left this month.`}
               </li>
             )}
@@ -400,6 +402,15 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
             <Link href="/plus" className="mt-2 inline-block font-semibold text-accent underline">Get unlimited with Plus</Link>
           </div>
         )}
+        {(access?.reason === "budget" || access?.reason === "daily") && (
+          <div className="rounded-2xl bg-accent-soft p-4 text-sm">
+            <p>
+              {access.reason === "budget"
+                ? "The AI chef has reached its limit for this month, so tonight is basic mode: steps, timers and common fixes. It'll be back next month."
+                : "You've cooked with the AI chef a lot today, so this session is basic mode: steps, timers and common fixes. It'll be back tomorrow."}
+            </p>
+          </div>
+        )}
         <div ref={transcriptEnd} />
       </div>
 
@@ -407,7 +418,7 @@ function CookMode({ recipe }: { recipe: RecipeDetail }) {
         <div className="pb-safe shrink-0 border-t border-line px-5 pt-4 pb-4">
           <p className="font-serif text-2xl">Dinner is served.</p>
           <Link href={`/dinner/new?recipe=${recipe.id}`} className="btn btn-accent mt-3 w-full">Share tonight&apos;s dinner</Link>
-          {access?.plan.plan === "free" && access.ai && (
+          {access?.plan.plan === "free" && access.ai && access.plan.aiSessionsLimit !== null && (
             <p className="mt-3 text-center text-xs text-muted">
               {Math.max(0, (access.plan.aiSessionsLimit ?? 0) - access.plan.aiSessionsUsed)} free AI chef sessions left this month.{" "}
               <Link href="/plus" className="font-semibold text-ink underline">Go unlimited</Link>

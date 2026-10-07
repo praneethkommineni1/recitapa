@@ -1,3 +1,4 @@
+import { track } from "@/lib/analytics";
 import { getDb } from "@/lib/db";
 import { handler, HttpError, json, optInt, readJson, requireUser, str } from "@/lib/http";
 import type { Step } from "@/lib/types";
@@ -50,5 +51,6 @@ export const POST = handler(async (req: Request) => {
       JSON.stringify(steps),
       JSON.stringify(tags),
     );
+  track(user.id, "recipe_published", { recipeId: Number(lastInsertRowid) });
   return json({ id: Number(lastInsertRowid) }, 201);
 });

@@ -35,3 +35,38 @@ export interface AssistantReply {
   actions: AssistantAction[];
   mode: "ai" | "offline";
 }
+
+/** Token usage of one model call, priced in pricing.ts. */
+export interface CallUsage {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
+export interface ChefInput {
+  recipe: {
+    title: string;
+    servings: number | null;
+    ingredients: string[];
+    /** Extra context about the recipe, e.g. that the cook scaled it. */
+    note?: string;
+  };
+  state: KitchenState;
+  history: AssistantTurn[];
+  event: AssistantEvent;
+}
+
+export type ChefReply = AssistantReply & { usage: CallUsage[] };
+
+/** A model provider that can run the sous-chef. Pick one with CHEF_MODEL (see chef.ts). */
+export interface ChefProvider {
+  name: string;
+  model: string;
+  configured(): boolean;
+  turn(input: ChefInput): Promise<ChefReply>;
+}
+
+/** Thrown by a provider when the model can't be reached; cook mode falls back to basic mode. */
+export class ChefUnavailableError extends Error {}

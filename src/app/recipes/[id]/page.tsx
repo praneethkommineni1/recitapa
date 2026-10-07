@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { BookmarkIcon, HeartIcon, MicIcon, SendIcon } from "@/components/Icons";
 import { totalMinutes, useToggles } from "@/components/RecipeCard";
 import { api, timeAgo } from "@/lib/client";
+import { adjustIngredient, convertTemperatures, type UnitSystem } from "@/lib/ingredients";
 import type { RecipeDetail } from "@/lib/types";
 
 export default function RecipePage() {
@@ -33,6 +34,9 @@ function RecipeView({ recipe, reload }: { recipe: RecipeDetail; reload: () => vo
   const { liked, saved, likes, toggleLike, toggleSave } = useToggles(recipe);
   const [comment, setComment] = useState("");
   const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [servings, setServings] = useState(recipe.servings);
+  const [units, setUnits] = useUnits();
+  const factor = servings && recipe.servings ? servings / recipe.servings : 1;
   const time = totalMinutes(recipe);
 
   async function postComment(e: React.FormEvent) {
@@ -74,12 +78,33 @@ function RecipeView({ recipe, reload }: { recipe: RecipeDetail; reload: () => vo
         {recipe.description && <p className="mt-5 text-[17px] leading-relaxed">{recipe.description}</p>}
 
         <dl className="mt-6 grid grid-cols-3 divide-x divide-line rounded-2xl border border-line bg-surface py-3 text-center">
-          <div><dt className="label !mb-0.5">Serves</dt><dd className="font-serif text-xl">{recipe.servings ?? "—"}</dd></div>
+          <div>
+            <dt className="label !mb-0.5">Serves</dt>
+            {servings ? (
+              <dd className="flex items-center justify-center gap-2 font-serif text-xl">
+                <button onClick={() => setServings(Math.max(1, servings - 1))} disabled={servings <= 1} className="h-7 w-7 rounded-full border border-line font-sans text-base leading-none disabled:opacity-40" aria-label="Fewer servings">−</button>
+                <span aria-live="polite">{servings}</span>
+                <button onClick={() => setServings(Math.min(50, servings + 1))} disabled={servings >= 50} className="h-7 w-7 rounded-full border border-line font-sans text-base leading-none disabled:opacity-40" aria-label="More servings">+</button>
+              </dd>
+            ) : (
+              <dd className="font-serif text-xl">—</dd>
+            )}
+          </div>
           <div><dt className="label !mb-0.5">Time</dt><dd className="font-serif text-xl">{time ?? "—"}</dd></div>
           <div><dt className="label !mb-0.5">Cooked</dt><dd className="font-serif text-xl">{recipe.cookedCount}×</dd></div>
         </dl>
 
-        <h2 className="mt-9 font-serif text-2xl">Ingredients</h2>
+        <div className="mt-9 flex items-end justify-between gap-3">
+          <h2 className="font-serif text-2xl">Ingredients</h2>
+          <div className="flex rounded-full border border-line p-0.5 text-xs font-medium" role="group" aria-label="Units">
+            {(["original", "metric", "us"] as const).map((u) => (
+              <button key={u} onClick={() => setUnits(u)} aria-pressed={units === u} className={`rounded-full px-2.5 py-1 ${units === u ? "bg-ink text-bg" : "text-muted"}`}>
+                {u === "original" ? "Original" : u === "metric" ? "Metric" : "US"}
+              </button>
+            ))}
+          </div>
+        </div>
+        {factor !== 1 && <p className="mt-2 text-sm text-muted">Amounts scaled from {recipe.servings} to {servings} servings.</p>}
         <ul className="mt-3 divide-y divide-line">
           {recipe.ingredients.map((ing, i) => (
             <li key={i}>
@@ -95,7 +120,7 @@ function RecipeView({ recipe, reload }: { recipe: RecipeDetail; reload: () => vo
                     setChecked(next);
                   }}
                 />
-                <span className={checked.has(i) ? "text-muted line-through" : ""}>{ing}</span>
+                <span className={checked.has(i) ? "text-muted line-through" : ""}>{adjustIngredient(ing, factor, units)}</span>
               </label>
             </li>
           ))}
@@ -107,7 +132,7 @@ function RecipeView({ recipe, reload }: { recipe: RecipeDetail; reload: () => vo
             <li key={i} className="flex gap-4">
               <span className="font-serif text-2xl leading-none text-accent">{i + 1}</span>
               <div>
-                <p className="leading-relaxed">{s.text}</p>
+                <p className="leading-relaxed">{convertTemperatures(s.text, units)}</p>
                 {s.minutes && <p className="mt-1 text-xs font-semibold tracking-wide text-muted uppercase">{s.minutes} min timer</p>}
               </div>
             </li>
@@ -144,10 +169,36 @@ function RecipeView({ recipe, reload }: { recipe: RecipeDetail; reload: () => vo
 
       <div className="fixed inset-x-0 z-20 mx-auto max-w-xl px-4 pb-3" style={{ bottom: "calc(64px + env(safe-area-inset-bottom))" }}>
         <div className="flex gap-2 rounded-full border border-line bg-surface/95 p-1.5 shadow-lg backdrop-blur">
-          <Link href={`/recipes/${recipe.id}/cook`} className="btn btn-accent flex-1 whitespace-nowrap"><MicIcon width={18} /> Start cooking</Link>
+          <Link href={`/recipes/${recipe.id}/cook${factor !== 1 ? `?servings=${servings}` : ""}`} className="btn btn-accent flex-1 whitespace-nowrap"><MicIcon width={18} /> Start cooking</Link>
           <Link href={`/dinner/new?recipe=${recipe.id}`} className="btn btn-ghost !border-0 whitespace-nowrap">I made this</Link>
         </div>
       </div>
     </>
   );
+}
+
+const UNITS_KEY = "recitapa.units";
+
+/** The reader's preferred units, remembered on this device. */
+function useUnits(): [UnitSystem, (u: UnitSystem) => void] {
+  const [units, setUnits] = useState<UnitSystem>("original");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(UNITS_KEY);
+      if (saved === "metric" || saved === "us") setUnits(saved);
+    } catch {
+      /* storage unavailable: keep the default */
+    }
+  }, []);
+  return [
+    units,
+    (u) => {
+      setUnits(u);
+      try {
+        localStorage.setItem(UNITS_KEY, u);
+      } catch {
+        /* ignore */
+      }
+    },
+  ];
 }

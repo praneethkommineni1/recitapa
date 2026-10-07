@@ -41,12 +41,15 @@ Week-4 retention is the number that decides what happens next.
 
 The goal is to find out whether friends keep each other cooking, before building anything big.
 
-- [ ] **Cheaper AI model.** Put the sous-chef behind a provider interface, write 20–30 kitchen test cases (tool accuracy, safety, short spoken replies), and compare Claude Haiku 4.5, Gemini Flash and Groq. Pick the cheapest model that passes every safety case; use a stronger model only for mishaps if needed. Avoid free tiers that train on user data.
-- [ ] **Global AI budget cap.** A monthly spend limit (e.g. $80, from `ai_usage`); once it's reached, all sessions fall back to basic mode with a friendly notice. Turn on alerts at 50% and 80%.
-- [ ] **Make AI free:** remove the 3-sessions-a-month free limit and keep the per-session turn cap.
-- [ ] **Fix AI session abuse:** tie each session to its recipe, expire it after about 4 hours, and create it in one transaction.
-- [ ] **Simple analytics:** an events table (signup, dinner logged, cook started/finished, follow, story viewed) and a script that prints day-1/7/30 retention for each signup week.
-- [ ] **Kitchen basics:** keep the screen awake in cook mode, test voice with real kitchen noise, and add serving scaling and metric/imperial units.
+- [x] **Model as a setting:** the sous-chef runs behind a provider interface; `CHEF_MODEL` picks the model.
+- [x] **Kitchen eval:** 25 test cases (tool accuracy, short spoken replies, 8 safety cases) and `npm run eval:chef` to compare models on pass rate, latency and cost.
+- [ ] **Pick the cheaper model:** run the eval on Claude Haiku 4.5 vs Opus 5.5 with an API key and set `CHEF_MODEL`. Add Gemini Flash or Groq as providers only if they're worth testing (needs their API keys; avoid free tiers that train on user data).
+- [x] **Global AI budget cap.** `AI_MONTHLY_BUDGET_USD` (default $80); once it's reached, all sessions fall back to basic mode with a friendly notice. Alerts at 50%, 80% and 100%, optionally to a Slack or Discord webhook. Plus a per-user daily session limit.
+- [x] **Make AI free:** remove the 3-sessions-a-month free limit and keep the per-session turn cap.
+- [x] **Fix AI session abuse:** tie each session to its recipe, expire it after about 4 hours, and create it in one transaction.
+- [x] **Simple analytics:** an events table (signup, daily open, dinner logged, cook started/finished, recipe published, follow, story viewed) and `npm run retention` for day-1/7/30 retention per signup week, the week-4 gate and a first-days funnel.
+- [x] **Kitchen basics:** keep the screen awake in cook mode (native plugin on iOS), serving scaling and metric/US units.
+- [ ] **Kitchen noise test** on a real iPhone (protocol in `docs/phase0-testing.md`).
 - [ ] **TestFlight with 20–50 young adults** who already know each other (one friend group, dorm or club, not strangers).
 - [ ] **Talk to testers each week.** What made you cook? What made you skip? What did you tell a friend about the app?
 
