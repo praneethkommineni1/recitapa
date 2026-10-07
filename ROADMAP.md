@@ -41,6 +41,7 @@ Week-4 retention is the number that decides what happens next.
 
 The goal is to find out whether friends keep each other cooking, before building anything big.
 
+- [ ] **Cheaper AI model.** Put the sous-chef behind a provider interface, write 20–30 kitchen test cases (tool accuracy, safety, short spoken replies), and compare Claude Haiku 4.5, Gemini Flash and Groq. Pick the cheapest model that passes every safety case; use a stronger model only for mishaps if needed. Avoid free tiers that train on user data.
 - [ ] **Global AI budget cap.** A monthly spend limit (e.g. $80, from `ai_usage`); once it's reached, all sessions fall back to basic mode with a friendly notice. Turn on alerts at 50% and 80%.
 - [ ] **Make AI free:** remove the 3-sessions-a-month free limit and keep the per-session turn cap.
 - [ ] **Fix AI session abuse:** tie each session to its recipe, expire it after about 4 hours, and create it in one transaction.
@@ -80,6 +81,7 @@ Small friend groups who keep each other cooking. This is what Instagram can't ea
 - [ ] **Circles:** private groups of 3–10 friends with their own feed of dinners.
 - [ ] **Shared circle streak:** the circle's streak grows when everyone (or most) cooks during the week. Weekly goals, e.g. 4 of 7 nights, instead of every night.
 - [ ] **Weekly challenges:** a theme per week ("from-scratch pasta", "under $5", "a dish from home"), with circle members' attempts side by side.
+- [ ] **Weekly voting:** circle members vote on challenge dinners. No self-votes, votes hidden until close, and only people who cooked can vote. Several awards instead of one winner (Best overall, Most improved, Most creative, Best on a budget, Best disaster) so beginners can win too. Winners get a crown on their profile for a week, a badge and a shareable card.
 - [ ] **Cook-together nights:** pick a recipe and a time; everyone cooks it with the sous-chef and posts the result.
 - [ ] **Skill progress:** track techniques learned (knife skills, sauces, baking) from recipes cooked. Badges already exist; tie them to these skills.
 - [ ] **Push notifications:** "your circle is 1 dinner from the weekly goal", "Maya just posted dinner", "challenge ends tonight".
