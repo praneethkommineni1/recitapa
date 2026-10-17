@@ -120,6 +120,23 @@ CREATE TABLE IF NOT EXISTS reel_views (
   seen_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (user_id, recipe_id)
 );
+-- Product analytics: one row per tracked action (names in lib/analytics.ts).
+CREATE TABLE IF NOT EXISTS events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  props TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS events_user ON events(user_id, created_at);
+CREATE INDEX IF NOT EXISTS events_name ON events(name, created_at);
+-- Monthly AI budget alerts already sent (percent of the cap), so each fires once a month.
+CREATE TABLE IF NOT EXISTS budget_alerts (
+  month TEXT NOT NULL,
+  percent INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (month, percent)
+);
 CREATE TABLE IF NOT EXISTS story_views (
   dinner_id INTEGER NOT NULL REFERENCES dinners(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -135,7 +152,10 @@ const ADDED_COLUMNS: Record<string, [string, string][]> = {
     ["stripe_customer_id", "TEXT"],
     ["bonus_freezes", "INTEGER NOT NULL DEFAULT 0"], // purchased streak freezes
   ],
-  cook_sessions: [["mishaps", "INTEGER NOT NULL DEFAULT 0"]], // mishaps the sous-chef logged
+  cook_sessions: [
+    ["mishaps", "INTEGER NOT NULL DEFAULT 0"], // mishaps the sous-chef logged
+    ["finished_at", "TEXT"], // set when the cook reaches "Dinner is served"
+  ],
 };
 
 function migrate(db: Database.Database) {
