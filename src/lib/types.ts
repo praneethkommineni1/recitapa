@@ -18,6 +18,8 @@ export interface RecipeCard {
   title: string;
   description: string;
   photoUrl: string | null;
+  /** The recipe has no photo of its own, so photoUrl is a dinner photo from someone who cooked it. */
+  photoFromCook: boolean;
   servings: number | null;
   prepMinutes: number | null;
   cookMinutes: number | null;
@@ -35,6 +37,8 @@ export interface RecipeDetail extends RecipeCard {
   ingredients: string[];
   steps: Step[];
   comments: { id: number; body: string; createdAt: string; author: UserSummary }[];
+  /** Dinner photos from people who cooked this recipe, newest first. */
+  cookPhotos: { id: number; photoUrl: string; author: UserSummary }[];
 }
 
 /** A recipe in the full-screen Reels feed. */

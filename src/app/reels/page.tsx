@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { BookmarkIcon, ClockIcon, CloseIcon, CommentIcon, HeartIcon, SendIcon } from "@/components/Icons";
 import { totalMinutes, useToggles } from "@/components/RecipeCard";
+import { coverGradient } from "@/components/RecipeTile";
 import { api } from "@/lib/client";
 import type { Reel } from "@/lib/types";
 
@@ -186,7 +187,7 @@ function ReelView({
               <img src={reel.photoUrl} alt="" className="reel-photo h-full w-full object-cover" draggable={false} />
             )
           ) : (
-            <div className="h-full w-full" style={{ background: cardGradient(reel.id) }} />
+            <div className="h-full w-full" style={{ background: coverGradient(reel.id) }} />
           )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/30" />
           {hearts.map((h) => (
@@ -239,7 +240,7 @@ function ReelView({
               {reel.servings ? <span>Serves {reel.servings}</span> : null}
               {reel.cookedCount > 0 && <span>Cooked {reel.cookedCount}×</span>}
               {reel.tags.slice(0, 3).map((t) => (
-                <Link key={t} href={`/explore?q=${encodeURIComponent(t)}`} className="pointer-events-auto">#{t}</Link>
+                <Link key={t} href={`/explore?tag=${encodeURIComponent(t)}`} className="pointer-events-auto">#{t}</Link>
               ))}
             </div>
             <div className="pointer-events-auto mt-3.5 flex gap-2">
@@ -274,11 +275,6 @@ function RailButton({ label, count, onClick, href, children }: { label: string; 
     <button onClick={onClick} aria-label={label} className={cls}>{inner}</button>
   );
 }
-
-const cardGradient = (id: number) => {
-  const hue = (id * 47) % 360;
-  return `linear-gradient(160deg, hsl(${hue} 42% 30%), hsl(${(hue + 40) % 360} 48% 11%))`;
-};
 
 /** Stand-in for recipes without a photo: the ingredient list, fading out where it meets the caption. */
 function IngredientList({ reel }: { reel: Reel }) {

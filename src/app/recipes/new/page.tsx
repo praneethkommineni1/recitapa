@@ -52,7 +52,10 @@ export default function NewRecipe() {
     <>
       <PageHeader title="New recipe" back />
       <form onSubmit={submit} className="space-y-6 px-5 pb-10">
-        <PhotoPicker value={photo} onChange={setPhoto} label="Add a cover photo" />
+        <div>
+          <PhotoPicker value={photo} onChange={setPhoto} label="Add a cover photo" />
+          {!photo && <p className="mt-2 text-xs text-muted">Recipes with a photo stand out in Explore and Reels. A phone photo of the finished dish is perfect.</p>}
+        </div>
         <div>
           <label className="label" htmlFor="title">Title</label>
           <input id="title" className="input font-serif !text-2xl" placeholder="Grandma's Sunday ragù" value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={120} />

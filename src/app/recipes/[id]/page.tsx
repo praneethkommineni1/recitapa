@@ -66,8 +66,15 @@ function RecipeView({ recipe, reload }: { recipe: RecipeDetail; reload: () => vo
         }
       />
       {recipe.photoUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={recipe.photoUrl} alt="" className="aspect-[4/3] w-full object-cover sm:rounded-3xl" />
+        <figure className="relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={recipe.photoUrl} alt="" className="aspect-[4/3] w-full object-cover sm:rounded-3xl" />
+          {recipe.photoFromCook && recipe.cookPhotos[0] && (
+            <figcaption className="absolute right-3 bottom-3 rounded-full bg-black/60 px-3 py-1 text-xs text-white backdrop-blur">
+              Photo by {recipe.cookPhotos[0].author.displayName}, who cooked it
+            </figcaption>
+          )}
+        </figure>
       )}
       <div className="px-5 pt-6 pb-32">
         <h1 className="font-serif text-4xl leading-[1.08] tracking-tight">{recipe.title}</h1>
@@ -141,9 +148,34 @@ function RecipeView({ recipe, reload }: { recipe: RecipeDetail; reload: () => vo
 
         {recipe.tags.length > 0 && (
           <div className="mt-8 flex flex-wrap gap-2">
-            {recipe.tags.map((t) => <Link key={t} href={`/explore?q=${encodeURIComponent(t)}`} className="rounded-full border border-line px-3 py-1 text-sm">#{t}</Link>)}
+            {recipe.tags.map((t) => <Link key={t} href={`/explore?tag=${encodeURIComponent(t)}`} className="rounded-full border border-line px-3 py-1 text-sm">#{t}</Link>)}
           </div>
         )}
+
+        <section className="mt-10">
+          <h2 className="font-serif text-2xl">From people who made it</h2>
+          {recipe.cookPhotos.length > 0 ? (
+            <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
+              {recipe.cookPhotos.map((p) => (
+                <Link key={p.id} href={`/u/${p.author.username}`} className="relative w-32 shrink-0 overflow-hidden rounded-2xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.photoUrl} alt={`${p.author.displayName}'s version`} loading="lazy" className="aspect-square w-full object-cover" />
+                  <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent px-2 pt-4 pb-1.5 text-xs font-medium text-white">
+                    {p.author.displayName}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted">
+              No photos yet.{" "}
+              <Link href={`/dinner/new?recipe=${recipe.id}`} className="font-semibold text-accent">
+                Cooked it? Share yours
+              </Link>
+              {recipe.photoUrl ? "." : " and it becomes the cover photo."}
+            </p>
+          )}
+        </section>
 
         <section id="comments" className="mt-10">
           <h2 className="font-serif text-2xl">Comments</h2>
