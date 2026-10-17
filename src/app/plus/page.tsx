@@ -10,7 +10,7 @@ import { buyNative, isNativeApp, loadNativeOffer, restoreNative, type NativeOffe
 const WEB_PRICES = { month: "$4.99", year: "$39.99" };
 
 const PERKS = [
-  { title: "Unlimited voice sous-chef", body: "Cook with the AI chef every night, not three times a month." },
+  { title: "Unlimited voice sous-chef", body: "Cook with the AI chef every night, with no monthly limit." },
   { title: "Streak freezes", body: "Two a month. Miss a night and your streak keeps going." },
   { title: "Rescue any dinner", body: "Mishap fixes and step rewrites whenever something goes sideways." },
   { title: "Support independent cooking", body: "Keep Recitapa ad-free for everyone." },
@@ -116,9 +116,11 @@ function Plus() {
             <h1 className="font-serif text-5xl leading-[1.05] tracking-tight">
               Never cook <em>alone</em>.
             </h1>
-            <p className="mt-3 text-muted">
-              You&apos;ve used {plan.aiSessionsUsed} of {plan.aiSessionsLimit} free AI chef sessions this month.
-            </p>
+            {plan.aiSessionsLimit !== null && (
+              <p className="mt-3 text-muted">
+                You&apos;ve used {plan.aiSessionsUsed} of {plan.aiSessionsLimit} free AI chef sessions this month.
+              </p>
+            )}
 
             <ul className="mt-8 space-y-5">
               {PERKS.map((p) => (

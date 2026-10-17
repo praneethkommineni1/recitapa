@@ -25,6 +25,9 @@ export const PlusIcon = (p: SVGProps<SVGSVGElement>) => (
 export const BookmarkIcon = ({ filled, ...p }: SVGProps<SVGSVGElement> & { filled?: boolean }) => (
   <svg {...base(p)} fill={filled ? "currentColor" : "none"}><path d="M6 3h12v18l-6-4-6 4z" /></svg>
 );
+export const ReelsIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><rect x="3" y="3" width="18" height="18" rx="4" /><path d="M3 8h18M8 3l3 5M14 3l3 5" /><path d="m10 11.5 4.5 2.5-4.5 2.5z" /></svg>
+);
 export const UserIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg>
 );

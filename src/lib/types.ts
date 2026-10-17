@@ -37,6 +37,14 @@ export interface RecipeDetail extends RecipeCard {
   comments: { id: number; body: string; createdAt: string; author: UserSummary }[];
 }
 
+/** A recipe in the full-screen Reels feed. */
+export interface Reel extends RecipeCard {
+  ingredients: string[];
+  stepCount: number;
+  /** The viewer follows the author. */
+  following: boolean;
+}
+
 export interface Dinner {
   id: number;
   photoUrl: string | null;

@@ -1,3 +1,4 @@
+import { track } from "@/lib/analytics";
 import { getDb } from "@/lib/db";
 import { handler, HttpError, json, optInt, readJson, requireUser, str } from "@/lib/http";
 import { dayNumber, isIsoDate } from "@/lib/streak";
@@ -25,5 +26,6 @@ export const POST = handler(async (req: Request) => {
   const { lastInsertRowid } = db
     .prepare("INSERT INTO dinners (user_id, recipe_id, photo_url, caption, local_date) VALUES (?, ?, ?, ?, ?)")
     .run(user.id, recipeId, photoUrl, caption, localDate);
+  track(user.id, "dinner_logged", { recipeId, photo: Boolean(photoUrl), caption: Boolean(caption) });
   return json({ id: Number(lastInsertRowid), streak: streakFor(user.id, localDate) }, 201);
 });

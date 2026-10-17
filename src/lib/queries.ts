@@ -1,6 +1,7 @@
 import { getDb } from "./db";
+import { rankReels, tagAffinity, type ReelCandidate } from "./reels";
 import { computeStreak } from "./streak";
-import type { Dinner, RecipeCard, RecipeDetail, Step, StoryGroup, StreakInfo, UserSummary } from "./types";
+import type { Dinner, RecipeCard, RecipeDetail, Reel, Step, StoryGroup, StreakInfo, UserSummary } from "./types";
 
 type Row = Record<string, unknown>;
 
@@ -49,6 +50,92 @@ export function feed(viewer: number, scope: "following" | "all", limit = 50): Re
     .prepare(`${RECIPE_SELECT} ${where} ORDER BY r.created_at DESC, r.id DESC LIMIT @limit`)
     .all({ viewer, limit }) as Row[];
   return rows.map(toCard);
+}
+
+/** Most recent recipes considered for the Reels feed. */
+const REEL_POOL = 500;
+
+/**
+ * The next page of the Reels feed for a viewer: other cooks' recipes, ranked by rankReels.
+ * `exclude` holds the ids already shown in this browsing session.
+ */
+export function reels(viewer: number, exclude: number[], limit = 8): Reel[] {
+  const db = getDb();
+  const skip = new Set(exclude);
+  const rows = db
+    .prepare(
+      `SELECT r.id, r.user_id, r.created_at, r.tags, r.photo_url IS NOT NULL AS has_photo,
+         (SELECT COUNT(*) FROM likes l WHERE l.recipe_id = r.id) AS likes,
+         (SELECT COUNT(*) FROM saves s WHERE s.recipe_id = r.id) AS saves,
+         (SELECT COUNT(*) FROM comments c WHERE c.recipe_id = r.id) AS comments,
+         (SELECT COUNT(*) FROM dinners d WHERE d.recipe_id = r.id) AS cooked,
+         (SELECT v.seen_at FROM reel_views v WHERE v.recipe_id = r.id AND v.user_id = @viewer) AS seen_at,
+         EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = @viewer AND f.followee_id = r.user_id) AS follows_author
+       FROM recipes r WHERE r.user_id != @viewer
+       ORDER BY r.created_at DESC, r.id DESC LIMIT @pool`,
+    )
+    .all({ viewer, pool: REEL_POOL }) as Row[];
+  const ms = (sqliteUtc: string) => Date.parse(`${sqliteUtc.replace(" ", "T")}Z`);
+  const candidates: ReelCandidate[] = rows
+    .filter((r) => !skip.has(r.id as number))
+    .map((r) => ({
+      id: r.id as number,
+      authorId: r.user_id as number,
+      createdAt: ms(r.created_at as string),
+      likes: r.likes as number,
+      saves: r.saves as number,
+      comments: r.comments as number,
+      cooked: r.cooked as number,
+      tags: JSON.parse(r.tags as string),
+      hasPhoto: Boolean(r.has_photo),
+      seenAt: r.seen_at ? ms(r.seen_at as string) : null,
+      followsAuthor: Boolean(r.follows_author),
+    }));
+
+  // The viewer's taste: tags of other cooks' recipes they liked, saved or cooked.
+  const signals = (
+    db
+      .prepare(
+        `SELECT r.tags, 1 AS weight FROM likes l JOIN recipes r ON r.id = l.recipe_id WHERE l.user_id = @viewer AND r.user_id != @viewer
+         UNION ALL
+         SELECT r.tags, 2 FROM saves s JOIN recipes r ON r.id = s.recipe_id WHERE s.user_id = @viewer AND r.user_id != @viewer
+         UNION ALL
+         SELECT r.tags, 3 FROM dinners d JOIN recipes r ON r.id = d.recipe_id WHERE d.user_id = @viewer AND r.user_id != @viewer`,
+      )
+      .all({ viewer }) as { tags: string; weight: number }[]
+  ).map((s) => ({ tags: JSON.parse(s.tags) as string[], weight: s.weight }));
+
+  const ids = rankReels(candidates, tagAffinity(signals), Date.now(), limit);
+  if (!ids.length) return [];
+  const byId = new Map(
+    (db.prepare(`${RECIPE_SELECT} WHERE r.id IN (SELECT value FROM json_each(@ids))`).all({ viewer, ids: JSON.stringify(ids) }) as Row[]).map(
+      (r) => [r.id as number, r],
+    ),
+  );
+  const followed = new Set(candidates.filter((c) => c.followsAuthor).map((c) => c.authorId));
+  return ids.flatMap((id) => {
+    const r = byId.get(id);
+    if (!r) return [];
+    const card = toCard(r);
+    return [
+      {
+        ...card,
+        ingredients: JSON.parse(r.ingredients as string) as string[],
+        stepCount: (JSON.parse(r.steps as string) as Step[]).length,
+        following: followed.has(card.author.id),
+      },
+    ];
+  });
+}
+
+/** Mark a recipe as watched in the Reels feed. */
+export function markReelSeen(viewer: number, recipeId: number): void {
+  getDb()
+    .prepare(
+      `INSERT INTO reel_views (user_id, recipe_id) SELECT ?, id FROM recipes WHERE id = ?
+       ON CONFLICT (user_id, recipe_id) DO UPDATE SET seen_at = datetime('now')`,
+    )
+    .run(viewer, recipeId);
 }
 
 export function recipesByUser(viewer: number, userId: number): RecipeCard[] {

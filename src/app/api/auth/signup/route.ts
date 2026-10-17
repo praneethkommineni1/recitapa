@@ -1,3 +1,4 @@
+import { track } from "@/lib/analytics";
 import { getDb } from "@/lib/db";
 import { hashPassword, startSession } from "@/lib/auth";
 import { handler, HttpError, json, readJson, str } from "@/lib/http";
@@ -17,6 +18,7 @@ export const POST = handler(async (req: Request) => {
   const { lastInsertRowid } = db
     .prepare("INSERT INTO users (username, display_name, password_hash) VALUES (?, ?, ?)")
     .run(username, displayName, hashPassword(password));
+  track(Number(lastInsertRowid), "signup");
   await startSession(Number(lastInsertRowid));
   return json({ ok: true }, 201);
 });
